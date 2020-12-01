@@ -19,7 +19,7 @@ import DialogTitle from '@material-ui/core/DialogTitle';
 import CardMedia from '@material-ui/core/CardMedia';
 import { appStyle } from './styles';
 
-const url = 'http://localhost:8000';
+const url = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 const socket = io(url);
 
 function App() {

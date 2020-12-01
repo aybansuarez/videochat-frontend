@@ -54,47 +54,40 @@ function App() {
   const handleClose = () => setOpen(false);
 
   const createRoom = async () => {
+    const room = await axios.post(`${url}/create-room-reference`);
+    setNewRoomId(room.data);
+    socket.emit('create room', { roomId: room.data });
     console.log('Create PeerConnection with configuration: ', configuration);
     peerConnection = new RTCPeerConnection(configuration);
+
     registerPeerConnectionListeners();
 
     userVideo.current.srcObject.getTracks().forEach(track => {
       peerConnection.addTrack(track, userVideo.current.srcObject);
     });
 
-    // Code for creating a room below
-    const offer = await peerConnection.createOffer({
-      mandatory: {
-        OfferToReceiveAudio: true,
-        OfferToReceiveVideo: true
+    // Code for collecting ICE candidates below
+    peerConnection.addEventListener('icecandidate', event => {
+      if (!event.candidate) {
+        return;
       }
+      console.log('Got candidate: ', event.candidate);
+      const data = { candidate: event.candidate.toJSON(), room: room.data };
+      axios.post(`${url}/add-caller-candidates`, data);
     });
+    // Code for collecting ICE candidates above
+
+    // Code for creating a room below
+    const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
     console.log('Created offer:', offer);
 
     const roomWithOffer = {
-      'offer': {
-        type: offer.type,
-        sdp: offer.sdp,
-      },
+      type: offer.type,
+      sdp: offer.sdp,
     };
 
-    axios.post(`${url}/add-room-reference`, { data: roomWithOffer })
-      .then((res) => {
-        setNewRoomId(res.data);
-        console.log(`New room created with SDP offer. Room ID: ${res.data}`);
-        socket.emit('create room', { roomId: res.data });
-        // Code for collecting ICE candidates below
-        peerConnection.onicecandidate = event => {
-          if (!event.candidate) {
-            return;
-          }
-          console.log('Got candidate: ', event.candidate);
-          const data = { candidate: event.candidate.toJSON(), room: res.data };
-          axios.post(`${url}/add-caller-candidates`, data);
-        };
-        // Code for collecting ICE candidates above
-      })
+    axios.post(`${url}/set-room-reference/${room.data}`, { data: roomWithOffer })
     // Code for creating a room above
 
     peerConnection.addEventListener('track', event => {
@@ -104,6 +97,7 @@ function App() {
         partnerVideo.current.srcObject.addTrack(track);
       });
     });
+
     // Listening for remote session description below
     socket.on('caller snapshot', async (snapshot) => {
       const data = await snapshot;
@@ -116,10 +110,10 @@ function App() {
     // Listening for remote session description above
 
     // Listen for remote ICE candidates below
-    // socket.on('callee snapshot', async (snapshot) => {
-    //   console.log(`Got new remote ICE candidate: ${JSON.stringify(snapshot)}`);
-    //   await peerConnection.addIceCandidate(new RTCIceCandidate(snapshot));
-    // });
+    socket.on('callee snapshot', async (snapshot) => {
+      console.log(`Got new remote ICE candidate: ${JSON.stringify(snapshot)}`);
+      await peerConnection.addIceCandidate(new RTCIceCandidate(snapshot));
+    });
     // Listen for remote ICE candidates above
 
     setCreateButtonDisabled(true);
@@ -137,7 +131,7 @@ function App() {
   const joinRoomById = async (roomId) => {
     axios.get(`${url}/join-room-reference/${roomId}`)
       .then(async (res) => {
-        if (res.data.exists) {
+        if (res.data.offer) {
           console.log('Create PeerConnection with configuration: ', configuration);
           peerConnection = new RTCPeerConnection(configuration);
           registerPeerConnectionListeners();
@@ -171,26 +165,24 @@ function App() {
           await peerConnection.setLocalDescription(answer);
 
           const roomWithAnswer = {
-            answer: {
-              type: answer.type,
-              sdp: answer.sdp,
-            },
+            type: answer.type,
+            sdp: answer.sdp,
           };
 
           const data = { room: roomId, data: roomWithAnswer }
           axios.post(`${url}/update-room-reference`, data);
           // Code for creating SDP answer above
-          // socket.emit('join room', { room: roomId });
+          socket.emit('join room', { room: roomId });
           // Listening for remote ICE candidates below
-          // socket.on('caller snapshot v2', (snapshot) => {
-          //   Object.keys(snapshot).forEach(async change => {
-          //     if (change.type === 'added') {
-          //       let data = change.doc.data();
-          //       console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
-          //       await peerConnection.addIceCandidate(new RTCIceCandidate(data));
-          //     }
-          //   });
-          // });
+          socket.on('caller snapshot v2', (snapshot) => {
+            Object.keys(snapshot).forEach(async change => {
+              if (change.type === 'added') {
+                let data = change.doc.data();
+                console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
+                await peerConnection.addIceCandidate(new RTCIceCandidate(data));
+              }
+            });
+          });
           // Listening for remote ICE candidates above
         }
       })

@@ -54,7 +54,7 @@ function App() {
   const handleClose = () => setOpen(false);
 
   const createRoom = async () => {
-    const room = await axios.post(`${url}/create-room-reference`);
+    const room = await axios.post(`${url}/create-room`);
     setNewRoomId(room.data);
     socket.emit('create room', { roomId: room.data });
     console.log('Create PeerConnection with configuration: ', configuration);
@@ -67,13 +67,13 @@ function App() {
     });
 
     // Code for collecting ICE candidates below
-    peerConnection.addEventListener('icecandidate', event => {
+    await peerConnection.addEventListener('icecandidate', event => {
       if (!event.candidate) {
         return;
       }
       console.log('Got candidate: ', event.candidate);
       const data = { candidate: event.candidate.toJSON(), room: room.data };
-      axios.post(`${url}/add-caller-candidates`, data);
+      axios.post(`${url}/add-callers`, data);
     });
     // Code for collecting ICE candidates above
 
@@ -87,7 +87,8 @@ function App() {
       sdp: offer.sdp,
     };
 
-    axios.post(`${url}/set-room-reference/${room.data}`, { data: roomWithOffer })
+    axios.post(`${url}/set-room-offer/${room.data}`, { data: roomWithOffer })
+    console.log(`New room created with SDP offer. Room ID: ${room.data}`)
     // Code for creating a room above
 
     peerConnection.addEventListener('track', event => {
@@ -100,25 +101,25 @@ function App() {
 
     // Listening for remote session description below
     socket.on('caller snapshot', async (snapshot) => {
-      const data = await snapshot.updateDescription;
-      if (!peerConnection.currentRemoteDescription && data.updatedFields && data.updatedFields.answer) {
+      const data = snapshot;
+      if (
+        !peerConnection.currentRemoteDescription &&
+        data.updatedFields &&
+        data.updatedFields.answer
+      ) {
         console.log('Got remote description: ', data.updatedFields.answer);
-        const rtcSessionDescription = new RTCSessionDescription(data.updatedFields.answer);
+        const rtcSessionDescription = new RTCSessionDescription(
+          data.updatedFields.answer
+        );
         await peerConnection.setRemoteDescription(rtcSessionDescription);
       }
     });
     // Listening for remote session description above
 
     // Listen for remote ICE candidates below
-    socket.on('callee snapshot', async (snapshot) => {
-      const doc = await snapshot.fullDocument;
-      const data = {
-        candidate: doc.candidate,
-        sdpMid: doc.sdpMid,
-        sdpMLineIndex: doc.sdpMLineIndex,
-      }
-      console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
-      await peerConnection.addIceCandidate(new RTCIceCandidate(data));
+    socket.on('callee snapshot', (snapshot) => {
+      console.log(`Got new remote ICE candidate: ${JSON.stringify(snapshot)}`);
+      peerConnection.addIceCandidate(new RTCIceCandidate(snapshot));
     });
     // Listen for remote ICE candidates above
 
@@ -135,10 +136,12 @@ function App() {
   }
 
   const joinRoomById = async (roomId) => {
-    axios.get(`${url}/join-room-reference/${roomId}`)
+    axios.get(`${url}/join-room/${roomId}`)
       .then(async (res) => {
         if (res.data.offer) {
-          console.log('Create PeerConnection with configuration: ', configuration);
+          console.log(
+            'Create PeerConnection with configuration: ', configuration
+          );
           peerConnection = new RTCPeerConnection(configuration);
           registerPeerConnectionListeners();
           userVideo.current.srcObject.getTracks().forEach(track => {
@@ -152,7 +155,7 @@ function App() {
             }
             console.log('Got candidate: ', event.candidate);
             const data = { candidate: event.candidate.toJSON(), room: roomId };
-            axios.post(`${url}/add-callee-candidates`, data);
+            axios.post(`${url}/add-callees`, data);
           });
           // Code for collecting ICE candidates above
           peerConnection.addEventListener('track', event => {
@@ -165,7 +168,9 @@ function App() {
           // Code for creating SDP answer below
           const offer = res.data.offer;
           console.log('Got offer:', offer);
-          await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+          await peerConnection.setRemoteDescription(
+            new RTCSessionDescription(offer)
+          );
           const answer = await peerConnection.createAnswer();
           console.log('Created answer:', answer);
           await peerConnection.setLocalDescription(answer);
@@ -176,18 +181,15 @@ function App() {
           };
 
           const data = { room: roomId, data: roomWithAnswer }
-          axios.post(`${url}/update-room-reference`, data);
+          axios.post(`${url}/set-room-answer`, data);
           // Code for creating SDP answer above
           socket.emit('join room', { roomId });
           // Listening for remote ICE candidates below
-          socket.on('caller snapshot v2', (snapshot) => {
-            Object.keys(snapshot).forEach(async change => {
-              if (change.type === 'added') {
-                let data = change.doc.data();
-                console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
-                await peerConnection.addIceCandidate(new RTCIceCandidate(data));
-              }
-            });
+          socket.on('caller snapshot v2', async (snapshot) => {
+            console.log(
+              `Got new remote ICE candidate: ${JSON.stringify(snapshot)}`
+            );
+            await peerConnection.addIceCandidate(new RTCIceCandidate(snapshot));
           });
           // Listening for remote ICE candidates above
         }
@@ -227,7 +229,7 @@ function App() {
 
     // Delete room on hangup
     if (newRoomId) {
-      axios.post(`${url}/delete-room-reference`, { room: newRoomId })
+      axios.post(`${url}/delete-room`, { room: newRoomId })
     }
     window.location.reload(true);
   }
@@ -293,9 +295,16 @@ function App() {
         </Button>
       </Grid>
       <Grid container className={style.roomName}>
-        <Typography variant='h4'>{newRoomId && `Room: ${newRoomId}`}</Typography>
+        <Typography variant='h4'>
+          {newRoomId && `Room: ${newRoomId}`}
+        </Typography>
       </Grid>
-      <Dialog open={open} onClose={handleClose} fullWidth aria-labelledby='form-dialog-title'>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        fullWidth
+        aria-labelledby='form-dialog-title'
+      >
         <DialogTitle id='form-dialog-title'>Join Room</DialogTitle>
         <DialogContent>
           <DialogContentText>

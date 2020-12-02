@@ -100,10 +100,10 @@ function App() {
 
     // Listening for remote session description below
     socket.on('caller snapshot', async (snapshot) => {
-      const data = await snapshot;
-      if (!peerConnection.currentRemoteDescription && data && data.answer) {
-        console.log('Got remote description: ', data.answer);
-        const rtcSessionDescription = new RTCSessionDescription(data.answer);
+      const data = await snapshot.updateDescription;
+      if (!peerConnection.currentRemoteDescription && data.updatedFields && data.updatedFields.answer) {
+        console.log('Got remote description: ', data.updatedFields.answer);
+        const rtcSessionDescription = new RTCSessionDescription(data.updatedFields.answer);
         await peerConnection.setRemoteDescription(rtcSessionDescription);
       }
     });
@@ -111,8 +111,14 @@ function App() {
 
     // Listen for remote ICE candidates below
     socket.on('callee snapshot', async (snapshot) => {
-      console.log(`Got new remote ICE candidate: ${JSON.stringify(snapshot)}`);
-      await peerConnection.addIceCandidate(new RTCIceCandidate(snapshot));
+      const doc = await snapshot.fullDocument;
+      const data = {
+        candidate: doc.candidate,
+        sdpMid: doc.sdpMid,
+        sdpMLineIndex: doc.sdpMLineIndex,
+      }
+      console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
+      await peerConnection.addIceCandidate(new RTCIceCandidate(data));
     });
     // Listen for remote ICE candidates above
 
@@ -172,7 +178,7 @@ function App() {
           const data = { room: roomId, data: roomWithAnswer }
           axios.post(`${url}/update-room-reference`, data);
           // Code for creating SDP answer above
-          socket.emit('join room', { room: roomId });
+          socket.emit('join room', { roomId });
           // Listening for remote ICE candidates below
           socket.on('caller snapshot v2', (snapshot) => {
             Object.keys(snapshot).forEach(async change => {

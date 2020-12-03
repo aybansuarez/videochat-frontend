@@ -2,9 +2,10 @@ import { makeStyles } from '@material-ui/core/styles';
 
 export const appStyle = makeStyles((theme) => ({
   root: {
-    height: '100vh',
+    overflowX: 'hidden',
   },
   buttonDiv: {
+    height: '65px',
     display: 'flex',
     justifyContent: 'center',
     '& button': {
@@ -14,9 +15,24 @@ export const appStyle = makeStyles((theme) => ({
       marginRight: theme.spacing(0.5)
     }
   },
+  buttonText: {
+    display: 'none',
+    [theme.breakpoints.up('sm')]: {
+      display: 'inline-block'
+    },
+  },
+  videoBox: {
+    height: 'calc(100vh - 95px)',
+  },
   roomName: {
-    minHeight: '50px',
+    minHeight: '30px',
     justifyContent: 'center',
-    margin: theme.spacing(2, 0)
+    margin: theme.spacing(1.5, 0),
+    '& h5': {
+      fontSize: '18px',
+      [theme.breakpoints.up('sm')]: {
+        fontSize: '20px'
+      },
+    }
   }
 }));

@@ -3,6 +3,8 @@ import axios from 'axios';
 import io from 'socket.io-client';
 
 import Container from '@material-ui/core/Container';
+import AppBar from '@material-ui/core/AppBar';
+import Toolbar from '@material-ui/core/Toolbar';
 import Grid from '@material-ui/core/Grid';
 import Button from '@material-ui/core/Button';
 import Typography from '@material-ui/core/Typography';
@@ -255,47 +257,46 @@ function App() {
   // }
 
   return (
-    <Container className={style.root}>
-      <Grid container className={style.buttonDiv}>
-        <Button
-          onClick={openUserMedia}
-          color='primary'
-          variant='contained'
-          disabled={mediaButtonDisabled}
-        >
-          <PermCameraMicIcon />
-          Open camera & microphone
-        </Button>
-        <Button
-          onClick={createRoom}
-          color='primary'
-          variant='contained'
-          disabled={createButtonDisabled}
-        >
-          <GroupAddIcon />
-          Create room
-        </Button>
-        <Button
-          onClick={handleClickOpen}
-          color='primary'
-          variant='contained'
-          disabled={joinButtonDisabled}
-        >
-          <GroupIcon />
-          Join room
-        </Button>
-        <Button
-          onClick={hangUp}
-          color='primary'
-          variant='contained'
-          disabled={endButtonDisabled}
-        >
-          <CallEndIcon />
-          Hangup
-        </Button>
-      </Grid>
+    <Grid className={style.root}>
+      <AppBar position='sticky' elevation={0}>
+        <Toolbar className={style.buttonDiv}>
+          <Button
+            onClick={openUserMedia}
+            variant='contained'
+            disabled={mediaButtonDisabled}
+          >
+            <PermCameraMicIcon />
+            <span className={style.buttonText}>Open camera & microphone</span>
+          </Button>
+          <Button
+            onClick={createRoom}
+            variant='contained'
+            disabled={createButtonDisabled}
+          >
+            <GroupAddIcon />
+            <span className={style.buttonText}>Create room</span>
+          </Button>
+          <Button
+            onClick={handleClickOpen}
+            variant='contained'
+            disabled={joinButtonDisabled}
+          >
+            <GroupIcon />
+            <span className={style.buttonText}>Join room</span>
+          </Button>
+          <Button
+            onClick={hangUp}
+            color='secondary'
+            variant='contained'
+            disabled={endButtonDisabled}
+          >
+            <CallEndIcon />
+            <span className={style.buttonText}>Hangup</span>
+          </Button>
+        </Toolbar>
+      </AppBar>
       <Grid container className={style.roomName}>
-        <Typography variant='h4'>
+        <Typography variant='h5'>
           {newRoomId && `Room: ${newRoomId}`}
         </Typography>
       </Grid>
@@ -328,7 +329,7 @@ function App() {
           </Button>
         </DialogActions>
       </Dialog>
-      <Grid container spacing={1}>
+      <Grid container spacing={1} className={style.videoBox}>
         <Grid item xs={12} md={6}>
           <CardMedia
             component='video'
@@ -344,7 +345,7 @@ function App() {
           />
         </Grid>
       </Grid>
-    </Container>
+    </Grid>
   );
 }
 

@@ -31,9 +31,9 @@ function App() {
         url: 'stun:74.125.142.127:19302'
       },
       {
-        url: "turn:18.223.2.75:3478?transport=tcp",
-        username: "aybansuarez",
-        credential: "Ginger123"
+        url: process.env.REACT_APP_TURN_URL,
+        username: process.env.REACT_APP_TURN_USERNAME,
+        credential: process.env.REACT_APP_TURN_PASSWORD
       },
     ],
     iceCandidatePoolSize: 10,

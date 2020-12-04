@@ -20,7 +20,7 @@ import DialogTitle from '@material-ui/core/DialogTitle';
 import CardMedia from '@material-ui/core/CardMedia';
 import { appStyle } from './styles';
 
-const url = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+const url = process.env.REACT_APP_BACKEND_URL || 'https://so-videochat-backend.herokuapp.com';
 const socket = io(url);
 
 function App() {
@@ -28,10 +28,12 @@ function App() {
   const configuration = {
     iceServers: [
       {
-        urls: [
-          'stun:stun1.l.google.com:19302',
-          'stun:stun2.l.google.com:19302',
-        ],
+        url: 'stun:74.125.142.127:19302'
+      },
+      {
+        url: "turn:18.223.2.75:3478?transport=tcp",
+        username: "aybansuarez",
+        credential: "Ginger123"
       },
     ],
     iceCandidatePoolSize: 10,
